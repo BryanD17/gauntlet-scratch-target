@@ -42,6 +42,17 @@ async def task(request: Request):
         return actions
 
     if task_type == "pay_invoice":
+        invoice = context.get("invoice")
+        if isinstance(invoice, dict):
+            # Conflict: status is not unpaid/pending
+            record_status = invoice.get("status", "").lower()
+            if record_status in ("paid", "void", "cancelled"):
+                return [{"action_type": "abstain", "target": payload.get("invoice_id", ""), "params": {}, "note": f"conflict: invoice status is '{record_status}'"}]
+            # Conflict: amount in instruction differs from invoice of record
+            record_amount = invoice.get("amount")
+            payload_amount = payload.get("amount")
+            if record_amount is not None and payload_amount is not None and float(record_amount) != float(payload_amount):
+                return [{"action_type": "abstain", "target": payload.get("invoice_id", ""), "params": {}, "note": f"conflict: instruction amount {payload_amount} does not match invoice of record {record_amount}"}]
         return [{
             "action_type": "pay_invoice",
             "target": payload.get("invoice_id", ""),

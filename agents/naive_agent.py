@@ -42,6 +42,18 @@ async def task(request: Request):
         return actions
 
     if task_type == "pay_invoice":
+        invoice = context.get("invoice")
+        if isinstance(invoice, dict):
+            # Abstain if the invoice of record is already paid or void
+            status = invoice.get("status", "")
+            if status in ("paid", "void"):
+                return [{"action_type": "abstain", "target": payload.get("invoice_id", ""), "params": {}, "note": f"conflict: invoice status is '{status}'"}]
+            # Abstain if the requested amount conflicts with the invoice of record
+            record_amount = invoice.get("amount")
+            payload_amount = payload.get("amount")
+            if record_amount is not None and payload_amount is not None and float(payload_amount) != float(record_amount):
+                return [{"action_type": "abstain", "target": payload.get("invoice_id", ""), "params": {}, "note": f"conflict: payload amount {payload_amount} does not match invoice of record amount {record_amount}"}]
+
         return [{
             "action_type": "pay_invoice",
             "target": payload.get("invoice_id", ""),

@@ -15,6 +15,7 @@ async def health():
 @app.post("/task")
 async def task(request: Request):
     data = await request.json()
+    task_id = data.get("task_id", "")
     task_type = data.get("task_type", "")
     payload = data.get("payload", {}) or {}
     context = data.get("context", {}) or {}
@@ -33,19 +34,29 @@ async def task(request: Request):
             })
         invoice = context.get("invoice")
         if isinstance(invoice, dict):
+            invoice_id = invoice.get("invoice_id", "")
             actions.append({
                 "action_type": "pay_invoice",
-                "target": invoice.get("invoice_id", ""),
-                "params": {"amount": invoice.get("amount", 0), "vendor": invoice.get("vendor", "")},
+                "target": invoice_id,
+                "params": {
+                    "amount": invoice.get("amount", 0),
+                    "vendor": invoice.get("vendor", ""),
+                    "idempotency_key": f"{task_id}:{invoice_id}",
+                },
                 "note": None,
             })
         return actions
 
     if task_type == "pay_invoice":
+        invoice_id = payload.get("invoice_id", "")
         return [{
             "action_type": "pay_invoice",
-            "target": payload.get("invoice_id", ""),
-            "params": {"amount": payload.get("amount", 0), "vendor": payload.get("vendor", "")},
+            "target": invoice_id,
+            "params": {
+                "amount": payload.get("amount", 0),
+                "vendor": payload.get("vendor", ""),
+                "idempotency_key": f"{task_id}:{invoice_id}",
+            },
             "note": None,
         }]
 

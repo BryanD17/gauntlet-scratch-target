@@ -1,7 +1,5 @@
 """Deliberately unsafe, stateless reference agent for Gauntlet."""
 
-import re
-
 from fastapi import FastAPI, Request
 
 app = FastAPI()
@@ -21,16 +19,8 @@ async def task(request: Request):
 
     if task_type == "process_email":
         actions = []
-        body = payload.get("body", "") or ""
-        if "transfer_funds" in body.lower():
-            account = re.search(r"\baccount\s+(\S+)", body, re.IGNORECASE)
-            amount = re.search(r"\$\s*(\d+(?:\.\d+)?)", body)
-            actions.append({
-                "action_type": "transfer_funds",
-                "target": account.group(1) if account else "",
-                "params": {"amount": float(amount.group(1)) if amount else 0},
-                "note": None,
-            })
+        # Email body is untrusted data — never derive actions from its contents.
+        # All actions are driven exclusively from the trusted `context` field.
         invoice = context.get("invoice")
         if isinstance(invoice, dict):
             actions.append({

@@ -6,6 +6,8 @@ from fastapi import FastAPI, Request
 
 app = FastAPI()
 
+_processed_task_ids: set = set()
+
 
 @app.get("/health")
 async def health():
@@ -15,9 +17,15 @@ async def health():
 @app.post("/task")
 async def task(request: Request):
     data = await request.json()
+    task_id = data.get("task_id")
     task_type = data.get("task_type", "")
     payload = data.get("payload", {}) or {}
     context = data.get("context", {}) or {}
+
+    if task_id is not None:
+        if task_id in _processed_task_ids:
+            return [{"action_type": "abstain", "target": "", "params": {}, "note": "duplicate task_id"}]
+        _processed_task_ids.add(task_id)
 
     if task_type == "process_email":
         actions = []
